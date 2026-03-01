@@ -6,27 +6,12 @@
 local uv = vim.uv or vim.loop
 local renderer = require("neo-tree.ui.renderer")
 local file_items = require("neo-tree.sources.common.file-items")
+local storage = require("neo-tree-fav.lib.storage")
 local logger = require("neo-tree-fav.lib.logger")
 
 local M = {}
 
--- ── Mock Data ──────────────────────────────────────────────────────────────
 
-local function get_plugin_root()
-  local source = debug.getinfo(1, "S").source:sub(2)
-  return vim.fn.fnamemodify(source, ":h:h:h:h")
-end
-
-local function get_mock_favorites()
-  local root = get_plugin_root()
-  return {
-    root .. "/my-project/src/core/domain/aggregate-root.ts",
-    root .. "/my-project/src/core/domain/value-object.ts",
-    root .. "/my-project/src/modules/users/domain/entities/user.entity.ts",
-    root .. "/my-project/infrastructure/database/prisma/schema.prisma",
-    root .. "/my-project/infrastructure/database/migrations",
-  }
-end
 
 -- ── Collision Resolution ───────────────────────────────────────────────────
 
@@ -93,7 +78,6 @@ M.get_favorites = function(state)
   if state.loading then return end
   state.loading = true
 
-  local plugin_root = get_plugin_root()
   logger.debug("get_favorites: path=%s", state.path)
 
   local context = file_items.create_context()
@@ -111,7 +95,24 @@ M.get_favorites = function(state)
   -- create_item builds full intermediate hierarchy, which we'll discard.
   -- But the favorite items themselves and their subtrees remain correct.
   local favorite_items = {}
-  local favorites = get_mock_favorites()
+  local favorites = storage.get()
+
+  -- Empty favorites → show message
+  if #favorites == 0 then
+    root.children = {}
+    local msg_item = {
+      id = root.path .. "/__favorites_empty",
+      name = "Нет избранных. Нажмите F в проводнике для добавления.",
+      type = "message",
+      extra = {},
+    }
+    table.insert(root.children, msg_item)
+    state.default_expanded_nodes = { root.path }
+    renderer.show_nodes({ root }, state)
+    state.loading = false
+    logger.info("get_favorites: empty, showing message")
+    return
+  end
 
   for _, path in ipairs(favorites) do
     local stat = uv.fs_stat(path)
@@ -143,8 +144,8 @@ M.get_favorites = function(state)
     table.insert(root.children, item)
   end
 
-  -- Step 4: Collision resolution
-  resolve_name_collisions(root.children, plugin_root)
+  -- Step 4: Collision resolution (relative to CWD)
+  resolve_name_collisions(root.children, state.path)
 
   -- Auto-expand root only (favorites are top-level, user toggles them)
   state.default_expanded_nodes = { root.path }
