@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: Not started
+> **Current Phase**: 2 (Ядро на моках)
 > **Milestone**: v1.0
 
 ## Must-Haves (from SPEC)
@@ -16,16 +16,16 @@
 ## Phases
 
 ### Phase 0: Discovery — Анализ Neo-tree Source API
-**Status**: ⬜ Not Started
-**Objective**: Изучить internal API neo-tree для создания кастомных source. Исследовать `sources/common/`, `sources/filesystem/`, `sources/buffers/`. Понять формат Node, Nid, механизм рендеринга.
+**Status**: ✅ Complete
+**Objective**: Изучить internal API neo-tree для создания кастомных source.
 **Deliverable**: `.gsd/RESEARCH.md` с описанием API, формата узлов, контрактов.
 
 ---
 
 ### Phase 1: Инфраструктура и Логирование
-**Status**: ⬜ Not Started
-**Objective**: Создать структуру плагина, модуль логгера, тестовую файловую структуру `my-project/`.
-**Deliverable**: Работающий логгер, структура каталогов плагина, тестовые файлы.
+**Status**: ✅ Complete
+**Objective**: Создать структуру плагина, модуль логгера, регистрация source.
+**Deliverable**: 6 Lua-файлов, логгер, source зарегистрирован, float + winbar работают.
 
 ---
 
