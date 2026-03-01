@@ -1,20 +1,16 @@
 # STATE.md — Project Memory
 
 > **Last Updated**: 2026-03-01
-> **Current Phase**: 3.5 (Рефакторинг filter/commands)
-> **Status**: Phase 3 complete, ready for 3.5
+> **Current Phase**: 4 (Динамическое дерево и Storage)
+> **Status**: Phase 3.5 complete, ready for Phase 4 planning
 
 ## Last Session Summary
 
-Phase 3 complete — filter/search на моках работает:
-- `lib/filter.lua`: модель filesystem/lib/filter.lua (clone+filter on_change, open_file on Enter)
-- `commands.lua`: fuzzy_finder, filter_on_submit, fuzzy_sorter, clear_filter
-- Маппинги: `/`, `f`, `#`, `<C-x>`
-- Enter на файле → открывает в редакторе (как filesystem)
-
-## Open Questions
-- Можно ли переиспользовать filter/commands из neo-tree напрямую?
-- Adapter/wrapper vs copy-adapt подход?
+Phase 3.5 complete — audit confirmed current approach is optimal:
+- filter.lua reuses fzy, setup_hooks, setup_mappings from neo-tree
+- Custom only: show_filtered_tree (40 lines) + reset_search (30 lines)
+- Further reduction impossible without forking neo-tree
+- Documented architecture, removed dead code
 
 ## Next Steps
-1. `/plan 3.5` — анализ реиспользования neo-tree internals
+1. `/plan 4` — Динамическое дерево и Storage
