@@ -1,6 +1,7 @@
 -- neo-tree-fav: Items builder for the favorites tree
--- Follows the EXACT pattern from buffers/lib/items.lua and git_status/lib/items.lua:
--- create_context → create_item per path → advanced_sort → renderer.show_nodes
+-- Builds a FLAT top-level of favorited items using create_item for
+-- correct node construction, then reparents them directly under root.
+-- Directories are pre-scanned so standard toggle_node works.
 
 local uv = vim.uv or vim.loop
 local renderer = require("neo-tree.ui.renderer")
@@ -11,8 +12,6 @@ local M = {}
 
 -- ── Mock Data ──────────────────────────────────────────────────────────────
 
---- Get the plugin's installation directory.
----@return string
 local function get_plugin_root()
   local source = debug.getinfo(1, "S").source:sub(2)
   return vim.fn.fnamemodify(source, ":h:h:h:h")
@@ -29,18 +28,33 @@ local function get_mock_favorites()
   }
 end
 
+-- ── Collision Resolution ───────────────────────────────────────────────────
+
+local function resolve_name_collisions(items, base_path)
+  local name_groups = {}
+  for _, item in ipairs(items) do
+    local base = item.name
+    name_groups[base] = name_groups[base] or {}
+    table.insert(name_groups[base], item)
+  end
+  for name, group in pairs(name_groups) do
+    if #group > 1 then
+      for _, item in ipairs(group) do
+        local parent_dir = vim.fn.fnamemodify(item.path, ":h")
+        local relative = parent_dir:gsub("^" .. vim.pesc(base_path) .. "/", "")
+        item.name = name .. " [" .. relative .. "]"
+      end
+    end
+  end
+end
+
 -- ── Directory Scanner ──────────────────────────────────────────────────────
 
---- Recursively scan a real FS directory and add all children via create_item.
---- create_item's set_parents will auto-parent them under the correct folder.
----@param context table file_items context
----@param dir_path string Absolute path to directory
+--- Recursively scan FS directory. Children are auto-parented under dir_path
+--- by create_item's set_parents mechanism.
 local function scan_directory_recursive(context, dir_path)
   local handle = uv.fs_scandir(dir_path)
-  if not handle then
-    logger.warn("scan_directory: cannot read %s", dir_path)
-    return
-  end
+  if not handle then return end
 
   while true do
     local name, type = uv.fs_scandir_next(handle)
@@ -52,79 +66,89 @@ local function scan_directory_recursive(context, dir_path)
       type = stat and stat.type == "directory" and "directory" or "file"
     end
 
-    local success, item = pcall(file_items.create_item, context, child_path, type)
-    if success then
-      if type == "directory" then
-        item.loaded = true
-        scan_directory_recursive(context, child_path)
-      end
-    else
-      logger.error("scan_directory: %s: %s", child_path, tostring(item))
+    local ok, item = pcall(file_items.create_item, context, child_path, type)
+    if ok and type == "directory" then
+      item.loaded = true
+      scan_directory_recursive(context, child_path)
     end
   end
 end
 
 -- ── Main Entry Point ───────────────────────────────────────────────────────
 
---- Build and render the favorites tree.
---- Uses the standard neo-tree pattern:
---- 1. create_context
---- 2. create_item for root
---- 3. create_item for each favorite path (set_parents auto-builds hierarchy)
---- 4. For favorite directories: scan real FS contents recursively
---- 5. advanced_sort + show_nodes
+--- Build the favorites tree with a FLAT top-level.
 ---
---- All intermediate folders between root and favorites are auto-created
---- by create_item's set_parents, and auto-expanded via default_expanded_nodes.
---- Standard neo-tree mechanisms handle toggle, search, filter.
+--- Strategy:
+--- 1. create_item for each favorite path → builds full hierarchy via set_parents
+--- 2. For favorite directories → scan real FS contents (children attach via set_parents)
+--- 3. FLATTEN: replace root.children with ONLY the favorite items
+---    - Each favorite's .children array stays intact (directories keep their subtree)
+---    - Standard toggle_node works because directories have loaded=true + children
+--- 4. Resolve name collisions with path hints
 ---@param state neotree.StateWithTree
 M.get_favorites = function(state)
   if state.loading then return end
   state.loading = true
-  logger.debug("get_favorites: building tree for path=%s", state.path)
+
+  local plugin_root = get_plugin_root()
+  logger.debug("get_favorites: path=%s", state.path)
 
   local context = file_items.create_context()
   context.state = state
 
-  -- Root folder
+  -- Root
   local root = file_items.create_item(context, state.path, "directory")
   root.name = "Favorites"
   root.loaded = true
   root.search_pattern = state.search_pattern
   context.folders[root.path] = root
 
-  -- Add each favorite path via standard create_item.
-  -- set_parents auto-creates all intermediate directories in the hierarchy.
+  -- Step 1+2: Create items & scan directories.
+  -- create_item builds full intermediate hierarchy, which we'll discard.
+  -- But the favorite items themselves and their subtrees remain correct.
+  local favorite_items = {}
   local favorites = get_mock_favorites()
+
   for _, path in ipairs(favorites) do
     local stat = uv.fs_stat(path)
     if stat then
       local ftype = stat.type == "directory" and "directory" or "file"
-      local success, item = pcall(file_items.create_item, context, path, ftype)
-      if success then
+      local ok, item = pcall(file_items.create_item, context, path, ftype)
+      if ok then
+        table.insert(favorite_items, item)
         if ftype == "directory" then
           item.loaded = true
+          context.folders[path] = item
           scan_directory_recursive(context, path)
         end
       else
-        logger.error("get_favorites: %s: %s", path, tostring(item))
+        logger.error("create_item failed: %s: %s", path, tostring(item))
       end
     else
-      logger.warn("get_favorites: path does not exist: %s", path)
+      logger.warn("path not found: %s", path)
     end
   end
 
-  -- Auto-expand ALL intermediate folders so the visual is "flat-ish"
-  state.default_expanded_nodes = {}
-  for id, _ in pairs(context.folders) do
-    table.insert(state.default_expanded_nodes, id)
+  -- Step 3: FLATTEN — replace root.children with only favorite items.
+  -- Intermediate directories (my-project/, src/, core/, etc.) are discarded.
+  -- Each favorite item keeps its own .children array intact.
+  root.children = {}
+  for _, item in ipairs(favorite_items) do
+    item.parent_path = root.path
+    table.insert(root.children, item)
   end
+
+  -- Step 4: Collision resolution
+  resolve_name_collisions(root.children, plugin_root)
+
+  -- Auto-expand root only (favorites are top-level, user toggles them)
+  state.default_expanded_nodes = { root.path }
 
   file_items.advanced_sort(root.children, state)
   renderer.show_nodes({ root }, state)
 
   state.loading = false
-  logger.info("get_favorites: rendered %d favorites", #favorites)
+  logger.info("get_favorites: %d items rendered (flat)", #favorite_items)
 end
 
 return M
