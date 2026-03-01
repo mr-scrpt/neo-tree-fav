@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: 2 (Ядро на моках)
+> **Current Phase**: 3 (Динамическое дерево и Фильтрация)
 > **Milestone**: v1.0
 
 ## Must-Haves (from SPEC)
@@ -30,7 +30,7 @@
 ---
 
 ### Phase 2: Ядро на моках (Mocks First)
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Реализовать source `favorites` со статическим списком путей (на основе тестовой структуры). Добиться корректной отрисовки в neo-tree с коллизиями имён.
 **Deliverable**: `<leader>F` отображает виртуальное дерево из моков. Папки раскрываются, иконки отображаются.
 
