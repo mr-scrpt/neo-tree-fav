@@ -126,24 +126,22 @@ M.setup = function(config, global_config)
   end
 
   -- Register "F" toggle in filesystem source.
-  -- This allows pressing F on any file/folder in filesystem tab to add/remove from favorites.
+  -- Two-step injection:
+  -- 1. Add toggle_favorite to filesystem COMMANDS MODULE (so state.commands resolves it)
+  -- 2. Add F → "toggle_favorite" to filesystem config mappings (so it's bound to key)
+  local ok, fs_commands = pcall(require, "neo-tree.sources.filesystem.commands")
+  if ok and fs_commands and not fs_commands.toggle_favorite then
+    fs_commands.toggle_favorite = function(state)
+      require("neo-tree-fav.commands").toggle_favorite(state)
+    end
+  end
+
   local neo_config = require("neo-tree").config
   if neo_config and neo_config.filesystem then
-    local fs_window = neo_config.filesystem.window or {}
-    local fs_mappings = fs_window.mappings or {}
-    -- Only set if user hasn't already mapped F
-    if fs_mappings["F"] == nil then
-      local commands_mod = require("neo-tree-fav.commands")
-      -- Inject mapping via neo-tree's config system
-      fs_mappings["F"] = {
-        function(state)
-          commands_mod.toggle_favorite(state)
-        end,
-        desc = "Toggle favorite",
-        nowait = true,
-      }
-      fs_window.mappings = fs_mappings
-      neo_config.filesystem.window = fs_window
+    neo_config.filesystem.window = neo_config.filesystem.window or {}
+    neo_config.filesystem.window.mappings = neo_config.filesystem.window.mappings or {}
+    if neo_config.filesystem.window.mappings["F"] == nil then
+      neo_config.filesystem.window.mappings["F"] = "toggle_favorite"
     end
   end
 
