@@ -44,6 +44,32 @@ M.clear_filter = function(state)
   filter.reset_search(state, true)
 end
 
+-- ── Favorite Management ─────────────────────────────────────────────────────────
+
+--- Toggle favorite (for use in filesystem source via F key)
+M.toggle_favorite = function(state)
+  local node = state.tree:get_node()
+  if not node or node.type == "message" then return end
+  local path = node:get_id()
+  local storage = require("neo-tree-fav.lib.storage")
+  local added = storage.toggle(path)
+  local action = added and "Added to" or "Removed from"
+  vim.notify(action .. " favorites: " .. vim.fn.fnamemodify(path, ":t"), vim.log.levels.INFO)
+  -- Refresh favorites source if open
+  pcall(manager.refresh, "favorites")
+end
+
+--- Remove favorite (for use in favorites tab — remove selected item)
+M.remove_favorite = function(state)
+  local node = state.tree:get_node()
+  if not node or node.type == "message" then return end
+  local path = node:get_id()
+  local storage = require("neo-tree-fav.lib.storage")
+  storage.remove(path)
+  vim.notify("Removed from favorites: " .. vim.fn.fnamemodify(path, ":t"), vim.log.levels.INFO)
+  manager.refresh("favorites")
+end
+
 -- ── Common Commands ────────────────────────────────────────────────────────
 -- Adds: open, toggle_node, close_node, close_all_nodes, expand_all_nodes,
 -- copy, cut, paste, delete, rename, show_debug_info, etc.

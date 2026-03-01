@@ -93,6 +93,7 @@ M.default_config = {
       ["f"] = "filter_on_submit",
       ["#"] = "fuzzy_sorter",
       ["<C-x>"] = "clear_filter",
+      ["F"] = "remove_favorite",
     },
   },
 }
@@ -122,6 +123,28 @@ M.setup = function(config, global_config)
         end
       end,
     })
+  end
+
+  -- Register "F" toggle in filesystem source.
+  -- This allows pressing F on any file/folder in filesystem tab to add/remove from favorites.
+  local neo_config = require("neo-tree").config
+  if neo_config and neo_config.filesystem then
+    local fs_window = neo_config.filesystem.window or {}
+    local fs_mappings = fs_window.mappings or {}
+    -- Only set if user hasn't already mapped F
+    if fs_mappings["F"] == nil then
+      local commands_mod = require("neo-tree-fav.commands")
+      -- Inject mapping via neo-tree's config system
+      fs_mappings["F"] = {
+        function(state)
+          commands_mod.toggle_favorite(state)
+        end,
+        desc = "Toggle favorite",
+        nowait = true,
+      }
+      fs_window.mappings = fs_mappings
+      neo_config.filesystem.window = fs_window
+    end
   end
 
   -- Diagnostics support
