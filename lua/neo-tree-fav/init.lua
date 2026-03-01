@@ -42,6 +42,14 @@ M.navigate = function(state, path, path_to_reveal, callback, async)
   logger.debug("navigate: path=%s, path_to_reveal=%s", state.path, tostring(path_to_reveal))
   items.get_favorites(state)
 
+  if path_to_reveal then
+    -- Deferred focus: give NUI input popup time to unmount before
+    -- refocusing the tree window. Matches filesystem filter pattern.
+    vim.defer_fn(function()
+      renderer.focus_node(state, path_to_reveal)
+    end, 100)
+  end
+
   if type(callback) == "function" then
     vim.schedule(callback)
   end
