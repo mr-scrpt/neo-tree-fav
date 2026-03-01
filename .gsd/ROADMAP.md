@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: 3 (Динамическое дерево и Фильтрация)
+> **Current Phase**: 3.5 (Рефакторинг filter/commands)
 > **Milestone**: v1.0
 
 ## Must-Haves (from SPEC)
@@ -37,9 +37,16 @@
 ---
 
 ### Phase 3: Фильтрация и поиск
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Добавить fuzzy_finder, filter, fuzzy_sorter в favorites source. Тестируем на моках.
 **Deliverable**: Маппинги `/`, `f`, `#` работают, фильтрация в реальном времени.
+
+---
+
+### Phase 3.5: Рефакторинг — анализ реиспользования neo-tree internals
+**Status**: ⬜ Not Started
+**Objective**: Детальный анализ — можно ли переиспользовать filter/commands из neo-tree напрямую вместо своих копий. Адаптер/wrapper vs copy-adapt.
+**Deliverable**: Решение + рефакторинг если возможно.
 
 ---
 
