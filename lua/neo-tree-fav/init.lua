@@ -93,11 +93,19 @@ M.default_config = {
 }
 
 ---Configures the plugin, should be called before the plugin is used.
----@param config table
----@param global_config table
+--- Called by neo-tree's manager.setup() with (config, global_config).
+--- May also be called by lazy.nvim with no arguments — in that case, just init logger.
+---@param config table?
+---@param global_config table?
 M.setup = function(config, global_config)
   logger.init()
   logger.info("favorites source setup complete")
+
+  -- When called from lazy.nvim without args, just init logger and return.
+  -- Neo-tree will call setup again with proper config.
+  if not global_config then
+    return
+  end
 
   -- Refresh on write
   if global_config.enable_refresh_on_write then
