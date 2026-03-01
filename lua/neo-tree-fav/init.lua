@@ -125,25 +125,37 @@ M.setup = function(config, global_config)
     })
   end
 
-  -- Register "F" toggle in filesystem source.
-  -- Two-step injection:
-  -- 1. Add toggle_favorite to filesystem COMMANDS MODULE (so state.commands resolves it)
-  -- 2. Add F → "toggle_favorite" to filesystem config mappings (so it's bound to key)
-  local ok, fs_commands = pcall(require, "neo-tree.sources.filesystem.commands")
-  if ok and fs_commands and not fs_commands.toggle_favorite then
-    fs_commands.toggle_favorite = function(state)
-      require("neo-tree-fav.commands").toggle_favorite(state)
-    end
-  end
-
-  local neo_config = require("neo-tree").config
-  if neo_config and neo_config.filesystem then
-    neo_config.filesystem.window = neo_config.filesystem.window or {}
-    neo_config.filesystem.window.mappings = neo_config.filesystem.window.mappings or {}
-    if neo_config.filesystem.window.mappings["F"] == nil then
-      neo_config.filesystem.window.mappings["F"] = "toggle_favorite"
-    end
-  end
+  -- Register "F" toggle in filesystem source via autocmd.
+  -- We set a buffer-local keymap on every neo-tree filesystem buffer.
+  -- This is the most reliable approach — it works regardless of when
+  -- neo-tree processes its config, because we set the keymap AFTER
+  -- the buffer is created.
+  vim.api.nvim_create_autocmd("FileType", {
+    pattern = "neo-tree",
+    group = vim.api.nvim_create_augroup("neo-tree-fav-toggle", { clear = true }),
+    callback = function(args)
+      -- Check if this buffer belongs to the filesystem source
+      vim.schedule(function()
+        if not vim.api.nvim_buf_is_valid(args.buf) then return end
+        local ok, source = pcall(vim.api.nvim_buf_get_var, args.buf, "neo_tree_source")
+        if ok and source == "filesystem" then
+          vim.api.nvim_buf_set_keymap(args.buf, "n", "F", "", {
+            noremap = true,
+            nowait = true,
+            desc = "Toggle favorite",
+            callback = function()
+              -- Get state for this filesystem buffer
+              local mgr = require("neo-tree.sources.manager")
+              local state = mgr.get_state("filesystem")
+              if state then
+                require("neo-tree-fav.commands").toggle_favorite(state)
+              end
+            end,
+          })
+        end
+      end)
+    end,
+  })
 
   -- Diagnostics support
   if global_config.enable_diagnostics then
