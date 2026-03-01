@@ -51,6 +51,49 @@ M.refresh = function()
   manager.refresh(M.name)
 end
 
+--- Toggle a directory node open/closed.
+--- When the directory is not yet loaded, marks it in state and re-navigates
+--- to rebuild the tree with the directory's real children.
+---@param state neotree.State
+---@param node NuiTree.Node?
+---@param path_to_reveal string?
+---@param skip_redraw boolean?
+M.toggle_directory = function(state, node, path_to_reveal, skip_redraw)
+  local tree = state.tree
+  if not node then
+    node = assert(tree:get_node())
+  end
+  if node.type ~= "directory" then
+    return
+  end
+
+  state.explicitly_opened_directories = state.explicitly_opened_directories or {}
+
+  if node.loaded == false then
+    -- Directory not yet scanned — mark as open and re-navigate to load children
+    local id = node:get_id()
+    state.explicitly_opened_directories[id] = true
+    renderer.position.set(state, nil)
+    M.navigate(state, state.path, path_to_reveal)
+  elseif node:has_children() then
+    -- Directory already loaded — just toggle expand/collapse
+    local updated = false
+    if node:is_expanded() then
+      updated = node:collapse()
+      state.explicitly_opened_directories[node:get_id()] = false
+    else
+      updated = node:expand()
+      state.explicitly_opened_directories[node:get_id()] = true
+    end
+    if updated and not skip_redraw then
+      renderer.redraw(state)
+    end
+    if path_to_reveal then
+      renderer.focus_node(state, path_to_reveal)
+    end
+  end
+end
+
 --- Default configuration for this source.
 --- Will be merged into neo-tree defaults.
 M.default_config = {
