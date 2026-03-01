@@ -67,9 +67,12 @@ local function scan_directory_recursive(context, dir_path)
     end
 
     local ok, item = pcall(file_items.create_item, context, child_path, type)
-    if ok and type == "directory" then
-      item.loaded = true
-      scan_directory_recursive(context, child_path)
+    if ok then
+      item.extra = item.extra or {}
+      if type == "directory" then
+        item.loaded = true
+        scan_directory_recursive(context, child_path)
+      end
     end
   end
 end
@@ -101,6 +104,7 @@ M.get_favorites = function(state)
   root.name = "Favorites"
   root.loaded = true
   root.search_pattern = state.search_pattern
+  root.extra = root.extra or {}
   context.folders[root.path] = root
 
   -- Step 1+2: Create items & scan directories.
@@ -115,6 +119,7 @@ M.get_favorites = function(state)
       local ftype = stat.type == "directory" and "directory" or "file"
       local ok, item = pcall(file_items.create_item, context, path, ftype)
       if ok then
+        item.extra = item.extra or {}
         table.insert(favorite_items, item)
         if ftype == "directory" then
           item.loaded = true
