@@ -88,7 +88,12 @@ M.default_config = {
     },
   },
   window = {
-    mappings = {},
+    mappings = {
+      ["/"] = "fuzzy_finder",
+      ["f"] = "filter_on_submit",
+      ["#"] = "fuzzy_sorter",
+      ["<C-x>"] = "clear_filter",
+    },
   },
 }
 
