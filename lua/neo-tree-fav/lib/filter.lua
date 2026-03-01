@@ -1,8 +1,26 @@
 -- neo-tree-fav: Filter/search for favorites source
--- Modeled on filesystem/lib/filter.lua pattern:
--- - on_change: clone tree + remove non-matching nodes + redraw (from common/filters)
--- - on_submit (Enter): get cursor node → open file or focus directory (from filesystem)
--- - close (Esc): defer reset_search to avoid double-reset (from filesystem)
+--
+-- ARCHITECTURE:
+--   Hybrid approach — reuses neo-tree internals where possible, custom only where needed.
+--
+--   REUSED from neo-tree:
+--     • fzy (common.filters.filter_fzy) — fuzzy scoring and matching
+--     • setup_hooks (common.filters) — BufLeave/BufDelete auto-close handlers
+--     • setup_mappings (common.filters) — ↑↓ Esc keybindings from fuzzy_finder_mappings
+--     • nui.input + popups — UI primitives
+--
+--   CUSTOM (cannot use common/filters directly):
+--     • show_filtered_tree — clone+filter approach from common/filters, but nil-safe node.extra
+--       (common/filters.show_filter hardcodes filter_external.cancel() and config.filesystem)
+--     • reset_search — filesystem/init.lua:202-248 pattern:
+--       file → utils.open_file, dir → navigate+focus
+--       (common/filters.reset_filter only navigates, never opens files)
+--     • on_change empty handler — filesystem/lib/filter.lua:144-154 pattern
+--
+-- REFERENCES:
+--   • neo-tree/sources/common/filters/init.lua — generic filter (our show_filtered_tree base)
+--   • neo-tree/sources/filesystem/lib/filter.lua — UI pattern (our show_filter base)
+--   • neo-tree/sources/filesystem/init.lua:202-248 — reset_search (our reset_search base)
 
 local Input = require("nui.input")
 local fav = require("neo-tree-fav")

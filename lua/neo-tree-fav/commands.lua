@@ -1,6 +1,14 @@
 -- neo-tree-fav: Commands for the favorites source
--- Wires filter/search commands using our filter module
--- (modeled on filesystem/lib/filter.lua pattern).
+--
+-- ARCHITECTURE:
+--   REUSED from neo-tree:
+--     • cc._add_common_commands(M) — open, toggle_node, close_node, copy, cut, paste, etc.
+--       These work out of the box because our items use create_item with proper fields.
+--
+--   CUSTOM (source-specific, see lib/filter.lua for why):
+--     • fuzzy_finder, filter_on_submit, fuzzy_sorter, clear_filter
+--       These are NOT in common/commands — filesystem defines them in filesystem/commands.lua
+--       with filesystem-specific filter.show_filter calls. We do the same with our filter module.
 
 local cc = require("neo-tree.sources.common.commands")
 local utils = require("neo-tree.utils")
@@ -9,13 +17,12 @@ local filter = require("neo-tree-fav.lib.filter")
 
 local M = {}
 
-local refresh = utils.wrap(manager.refresh, "favorites")
-local redraw = utils.wrap(manager.redraw, "favorites")
-
-M.refresh = refresh
+M.refresh = utils.wrap(manager.refresh, "favorites")
 M.show_debug_info = cc.show_debug_info
 
 -- ── Filter / Search Commands ───────────────────────────────────────────────
+-- Modeled on filesystem/commands.lua:86-125.
+-- Uses our lib/filter (not common/filters) for correct Enter behavior.
 
 M.filter_as_you_type = function(state)
   filter.show_filter(state, true, false)
@@ -37,7 +44,9 @@ M.clear_filter = function(state)
   filter.reset_search(state, true)
 end
 
--- Add ALL common commands: open, toggle_node, close_node, etc.
+-- ── Common Commands ────────────────────────────────────────────────────────
+-- Adds: open, toggle_node, close_node, close_all_nodes, expand_all_nodes,
+-- copy, cut, paste, delete, rename, show_debug_info, etc.
 cc._add_common_commands(M)
 
 return M
