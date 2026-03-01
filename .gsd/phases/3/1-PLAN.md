@@ -4,102 +4,115 @@ plan: 1
 wave: 1
 ---
 
-# Plan 3.1: Динамическое дерево (замена моков на storage API)
+# Plan 3.1: Фильтрация и поиск для favorites source
 
 ## Objective
 
-Заменить захардкоженный `get_mock_favorites()` в `items.lua` на вызов `storage.get()`,
-который возвращает список абсолютных путей из per-project JSON-файла.
-На этом этапе storage реализует минимальный API: `get()`, `add()`, `remove()`, `toggle()`.
-Файл JSON создаётся/читается из `~/.config/nvim/favorite-projects/`.
+Добавить поддержку fuzzy_finder (`/`), filter_on_submit (`f`), fuzzy_sorter (`#`)
+в favorites source. Эти команды — НЕ часть common commands, а определены только в
+`filesystem/commands.lua` через `filesystem/lib/filter.lua`, который жёстко привязан
+к `fs._navigate_internal()` и `fs.reset_search()`.
+
+Решение: написать свой `lib/filter.lua`, который переиспользует `common.filters`
+(setup_hooks, setup_mappings) и `nui.input`, но вызывает наш `navigate()`.
+Тестируем на моках — storage ещё не реализован.
 
 ## Context
 
-- `.gsd/SPEC.md` — Goals 2, 3, 5
-- `lua/neo-tree-fav/lib/items.lua` — текущий items builder (моки на строках 20-29)
-- `lua/neo-tree-fav/lib/storage.lua` — заглушка, заменить реальной реализацией
-- `lua/neo-tree-fav/init.lua` — source contract (navigate вызывает items.get_favorites)
+- `lua/neo-tree-fav/init.lua` — source contract, navigate()
+- `lua/neo-tree-fav/commands.lua` — текущие команды (только common)
+- `neo-tree/sources/filesystem/lib/filter.lua` — референсная реализация
+- `neo-tree/sources/common/filters.lua` — переиспользуемые хуки и маппинги
+- `neo-tree/sources/filesystem/commands.lua:86-125` — filter/fuzzy команды
+- `lua/neo-tree-fav/lib/items.lua` — items builder (search_pattern передаётся в root)
 
 ## Tasks
 
 <task type="auto">
-  <name>Реализация storage.lua</name>
-  <files>lua/neo-tree-fav/lib/storage.lua</files>
+  <name>lib/filter.lua — обёртка поиска для favorites</name>
+  <files>lua/neo-tree-fav/lib/filter.lua (NEW)</files>
   <action>
-    Реализовать модуль хранения favorites:
+    Скопировать структуру из `filesystem/lib/filter.lua`, упростить:
 
-    1. `M.get_storage_path()` — вычисляет путь к JSON-файлу:
-       `~/.config/nvim/favorite-projects/{project_name}_{cwd_hash}.json`
-       - `project_name` = basename CWD
-       - `cwd_hash` = первые 8 символов SHA256 от CWD (для уникальности)
-       - Использовать `vim.fn.stdpath("config")` для base path
-       - Создавать директорию `favorite-projects/` если не существует
-    2. `M.get()` → string[] — читает JSON, возвращает список абсолютных путей.
-       Если файл не существует — возвращает пустой `{}`.
-    3. `M.add(path)` — добавляет абсолютный путь (если ещё нет), сохраняет.
-    4. `M.remove(path)` — удаляет путь (если есть), сохраняет.
-    5. `M.toggle(path)` → boolean — add если нет, remove если есть.
-       Возвращает true если добавлен, false если удалён.
-    6. `M.has(path)` → boolean — проверка наличия.
-    7. Внутренний `save(paths)` и `load()` через `vim.fn.json_encode`/`json_decode`.
+    1. `M.show_filter(state, search_as_you_type, fuzzy_finder_mode, use_fzy, keep_filter_on_submit)` —
+       та же сигнатура что и filesystem.
+    2. UI: переиспользовать `nui.input`, `popups.popup_options`.
+    3. `on_change`: устанавливает `state.search_pattern`, debounce-вызов
+       `require("neo-tree-fav").navigate(state)`.
+    4. `on_submit`: пустое — reset, иначе `state.search_pattern = value`.
+    5. `M.reset_search(state, refresh)` — обнуляет search/fuzzy поля, вызывает navigate.
+    6. Переиспользовать `common_filter.setup_hooks()` и `setup_mappings()`.
 
-    ИЗБЕГАТЬ:
-    - Использовать vim.fn.getcwd() ТОЛЬКО для вычисления имени проекта (не для путей items)
-    - Не кэшировать данные в памяти — всегда читать из файла (Phase 5 оптимизирует)
+    КЛЮЧЕВЫЕ ОТЛИЧИЯ от filesystem/lib/filter.lua:
+    - `fav.navigate(state)` вместо `fs._navigate_internal(state)`
+    - `M.reset_search` вместо `fs.reset_search`
+    - Debounce key: `"favorites_filter"`
+    - Нет `state.force_open_folders`
   </action>
-  <verify>
-    В Neovim: `:lua print(vim.inspect(require("neo-tree-fav.lib.storage").get()))`
-    Должен вернуть `{}` (пустой список) без ошибок.
-    `:lua require("neo-tree-fav.lib.storage").add("/tmp/test"); print(vim.inspect(require("neo-tree-fav.lib.storage").get()))`
-    Должен вернуть `{"/tmp/test"}`.
-  </verify>
-  <done>
-    storage.lua реализован: get/add/remove/toggle/has работают.
-    JSON-файл создаётся в ~/.config/nvim/favorite-projects/.
-  </done>
+  <verify>`:lua require("neo-tree-fav.lib.filter")` — без ошибок</verify>
+  <done>lib/filter.lua создан и загружается без ошибок</done>
 </task>
 
 <task type="auto">
-  <name>items.lua: замена моков на storage.get()</name>
-  <files>lua/neo-tree-fav/lib/items.lua</files>
+  <name>commands.lua + init.lua: команды и маппинги</name>
+  <files>
+    lua/neo-tree-fav/commands.lua
+    lua/neo-tree-fav/init.lua
+  </files>
   <action>
-    1. Убрать `get_mock_favorites()` и `get_plugin_root()`.
-    2. В `get_favorites(state)`:
-       - Вызвать `require("neo-tree-fav.lib.storage").get()` вместо mock.
-       - Если список пуст — показать message-node "Нет избранных. Нажмите F в проводнике."
-       - `resolve_name_collisions` использует `state.path` (CWD) как base_path.
-    3. Удалить привязку к `debug.getinfo` — пути теперь абсолютные из storage.
+    1. В `commands.lua` добавить:
+       ```lua
+       local filter = require("neo-tree-fav.lib.filter")
+       M.filter_as_you_type = function(state)
+         filter.show_filter(state, true, false, false, false)
+       end
+       M.filter_on_submit = function(state)
+         filter.show_filter(state, false, false, false, true)
+       end
+       M.fuzzy_finder = function(state)
+         filter.show_filter(state, true, true, false, false)
+       end
+       M.fuzzy_sorter = function(state)
+         filter.show_filter(state, true, true, true, false)
+       end
+       M.clear_filter = function(state)
+         filter.reset_search(state, true)
+       end
+       ```
 
-    ИЗБЕГАТЬ:
-    - Менять логику flatten/рeparenting — она работает.
-    - Менять scan_directory_recursive — она работает.
+    2. В `init.lua` → `default_config.window.mappings` добавить:
+       ```lua
+       ["/"] = "fuzzy_finder",
+       ["f"] = "filter_on_submit",
+       ["#"] = "fuzzy_sorter",
+       ["<C-x>"] = "clear_filter",
+       ```
+
+    3. В `init.lua` добавить `M.reset_search(state, refresh)` — вызывается
+       из filter.lua (по аналогии с `fs.reset_search`).
   </action>
   <verify>
-    `<leader>F` без добавленных favorites: показывает message "Нет избранных".
-    После `:lua require("neo-tree-fav.lib.storage").add(vim.fn.expand("%:p"))` и повторного `<leader>F`:
-    текущий файл появляется в дереве.
+    `<leader>F` → `/` — появляется строка "Filter:" внизу окна.
+    Ввод "aggr" — дерево фильтруется в реальном времени.
   </verify>
-  <done>
-    items.lua получает paths из storage.get().
-    Пустой список отображает message-node.
-    Добавленные пути корректно рендерятся.
-  </done>
+  <done>Маппинги `/`, `f`, `#`, `<C-x>` работают в favorites</done>
 </task>
 
 <task type="checkpoint:human-verify">
-  <name>Визуальная проверка динамического дерева</name>
+  <name>Визуальная проверка поиска и фильтрации</name>
   <action>
-    Пользователь проверяет:
-    1. `<leader>F` — пустое дерево с сообщением
-    2. Добавить файл через storage.add → `<leader>F` → файл виден
-    3. Добавить папку → папка раскрывается
+    1. `<leader>F` → `/` → ввод "aggr" → показывает aggregate-root.ts
+    2. `<leader>F` → `f` → "schema" → Enter → показывает schema.prisma
+    3. `<C-x>` — сброс фильтра, видит всё дерево
+    4. `#` — fuzzy sorter работает
   </action>
-  <done>Пользователь подтвердил</done>
+  <done>Пользователь подтвердил работу фильтрации</done>
 </task>
 
 ## Success Criteria
 
-- [ ] `storage.lua` — get/add/remove/toggle/has работают с JSON per-project
-- [ ] `items.lua` — использует storage.get() вместо моков
-- [ ] Пустое избранное показывает message-node
-- [ ] Добавленные элементы корректно рендерятся
+- [ ] `/` открывает fuzzy finder в favorites
+- [ ] `f` открывает filter на submit
+- [ ] `#` открывает fuzzy sorter
+- [ ] `<C-x>` сбрасывает фильтр
+- [ ] Фильтрация корректно работает с виртуальными узлами на моках

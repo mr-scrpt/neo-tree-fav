@@ -36,21 +36,28 @@
 
 ---
 
-### Phase 3: Динамическое дерево и Фильтрация
+### Phase 3: Фильтрация и поиск
 **Status**: ⬜ Not Started
-**Objective**: Заменить моки на динамическую генерацию узлов. Убедиться, что встроенный поиск/фильтрация neo-tree работают с виртуальными узлами.
-**Deliverable**: Поиск по `aggregate` показывает только `domain [src/core] > aggregate-root.ts`.
+**Objective**: Добавить fuzzy_finder, filter, fuzzy_sorter в favorites source. Тестируем на моках.
+**Deliverable**: Маппинги `/`, `f`, `#` работают, фильтрация в реальном времени.
 
 ---
 
-### Phase 4: Персистентность и Управление
+### Phase 4: Динамическое дерево и Storage
 **Status**: ⬜ Not Started
-**Objective**: Реализовать toggle `F` в filesystem, хранение в JSON per-project, загрузку при старте.
-**Deliverable**: Полный цикл: добавить → сохранить → перезапустить → данные на месте.
+**Objective**: Заменить моки на динамическую генерацию из per-project JSON. Toggle `F` в filesystem.
+**Deliverable**: Полный цикл: `F` добавляет → `<leader>F` показывает.
 
 ---
 
-### Phase 5: Финализация и Валидация
+### Phase 5: Персистентность и Управление
 **Status**: ⬜ Not Started
-**Objective**: Обработка edge-cases (удалённые/перемещённые файлы), FS-watcher, полировка UX.
+**Objective**: Хранение в JSON per-project, загрузка при старте, message-node для пустого.
+**Deliverable**: Данные сохраняются и восстанавливаются между сессиями.
+
+---
+
+### Phase 6: Финализация и Валидация
+**Status**: ⬜ Not Started
+**Objective**: Edge-cases (удалённые/перемещённые файлы), FS-watcher, полировка UX.
 **Deliverable**: Стабильный, production-ready плагин.
