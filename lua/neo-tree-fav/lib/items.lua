@@ -12,16 +12,27 @@ local M = {}
 
 -- ── Mock Data ──────────────────────────────────────────────────────────────
 
+--- Get the plugin's installation directory (where lua/neo-tree-fav/ lives).
+--- We derive this from the current file's path, NOT from vim.fn.getcwd()
+--- because CWD can change when neo-tree filesystem has bind_to_cwd = true.
+---@return string
+local function get_plugin_root()
+  local source = debug.getinfo(1, "S").source:sub(2) -- remove leading @
+  -- source = .../neo-tree-fav/lua/neo-tree-fav/lib/items.lua
+  -- plugin root = .../neo-tree-fav
+  return vim.fn.fnamemodify(source, ":h:h:h:h")
+end
+
 local function get_mock_favorites()
-  local cwd = vim.fn.getcwd()
+  local root = get_plugin_root()
   return {
     -- Files
-    { path = cwd .. "/my-project/src/core/domain/aggregate-root.ts",                type = "file" },
-    { path = cwd .. "/my-project/src/core/domain/value-object.ts",                  type = "file" },
-    { path = cwd .. "/my-project/src/modules/users/domain/entities/user.entity.ts", type = "file" },
-    { path = cwd .. "/my-project/infrastructure/database/prisma/schema.prisma",     type = "file" },
+    { path = root .. "/my-project/src/core/domain/aggregate-root.ts",                type = "file" },
+    { path = root .. "/my-project/src/core/domain/value-object.ts",                  type = "file" },
+    { path = root .. "/my-project/src/modules/users/domain/entities/user.entity.ts", type = "file" },
+    { path = root .. "/my-project/infrastructure/database/prisma/schema.prisma",     type = "file" },
     -- Папки
-    { path = cwd .. "/my-project/infrastructure/database/migrations",               type = "directory" },
+    { path = root .. "/my-project/infrastructure/database/migrations",               type = "directory" },
   }
 end
 
@@ -30,8 +41,8 @@ end
 --- Resolve name collisions among items list.
 --- Items with duplicate basenames get path hints: `name [relative/path/]`
 ---@param items table[] List of items (each with .name and .path)
----@param cwd string Current working directory
-local function resolve_name_collisions(items, cwd)
+---@param base_path string Base path for computing relative hints
+local function resolve_name_collisions(items, base_path)
   local name_groups = {}
   for _, item in ipairs(items) do
     local base = item.name
@@ -43,7 +54,7 @@ local function resolve_name_collisions(items, cwd)
     if #group > 1 then
       for _, item in ipairs(group) do
         local parent_dir = vim.fn.fnamemodify(item.path, ":h")
-        local relative = parent_dir:gsub("^" .. vim.pesc(cwd) .. "/", "")
+        local relative = parent_dir:gsub("^" .. vim.pesc(base_path) .. "/", "")
         item.name = name .. " [" .. relative .. "]"
         logger.debug("collision resolved: %s -> %s", name, item.name)
       end
@@ -106,7 +117,7 @@ M.get_favorites = function(state)
   end
   state.loading = true
 
-  local cwd = vim.fn.getcwd()
+  local plugin_root = get_plugin_root()
   logger.debug("get_favorites: building tree for path=%s", state.path)
 
   -- Phase 1: Create all items using standard create_item (which builds
@@ -154,7 +165,7 @@ M.get_favorites = function(state)
   end
 
   -- Phase 3: Resolve name collisions on the flat list
-  resolve_name_collisions(root.children, cwd)
+  resolve_name_collisions(root.children, plugin_root)
 
   -- Only root expanded by default
   state.default_expanded_nodes = { root.path }
