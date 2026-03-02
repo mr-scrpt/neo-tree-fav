@@ -112,3 +112,15 @@
 - [ ] TBD (run /plan 9 to create)
 
 **Deliverable**: Плагин готов для `git push` на GitHub и установки через `lazy.nvim` с пользовательскими настройками.
+
+---
+
+### Phase 10: Per-project хранение избранного
+**Status**: ⬜ Not Started
+**Objective**: Добавить опцию выбора стратегии хранения избранного: `local` — файл `.neo-tree-fav.json` в корне проекта (cwd), `global` — все файлы централизованно в `storage_dir` (как сейчас). Конфигурируется через `setup({ storage_mode = "local" | "global" })`.
+**Depends on**: Phase 9
+
+**Tasks**:
+- [ ] TBD (run /plan 10 to create)
+
+**Deliverable**: Пользователь может выбрать `local` (файл в корне проекта) или `global` (централизованная папка) стратегию хранения.
