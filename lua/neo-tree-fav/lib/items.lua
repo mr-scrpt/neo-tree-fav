@@ -158,19 +158,25 @@ M.get_favorites = function(state)
     return
   end
 
-  -- Track paths created by directory scanning to detect duplicates.
-  -- If a favorite is ALSO inside a scanned directory, it gets a unique
-  -- nui tree id ("fav:" prefix) so both can coexist. node.path stays real.
-  local scanned_paths = {}
+  -- Build a set of ALL favorite paths upfront.
+  -- Used in scan_directory_recursive to detect children that are also top-level favorites.
+  local favorite_set = {}
+  for _, p in ipairs(favorites) do
+    favorite_set[p] = true
+  end
+
+  -- Track paths already added as top-level items to detect the reverse case
+  -- (directory scanned first, file favorite comes second).
+  local top_level_paths = {}
 
   for _, path in ipairs(favorites) do
     local stat = uv.fs_stat(path)
     if stat then
       local ftype = stat.type == "directory" and "directory" or "file"
 
-      if scanned_paths[path] then
-        -- This path already exists in the tree (child of another favorite dir).
-        -- Create a reference item with unique id so nui tree accepts it.
+      if top_level_paths[path] then
+        -- This path already exists in the tree (child of another favorite dir
+        -- that was processed before this favorite). Create a reference item.
         local ref_item = {
           id = "fav:" .. path,
           path = path,
@@ -181,7 +187,6 @@ M.get_favorites = function(state)
           loaded = true,
         }
         if ftype == "directory" then
-          -- For directory refs, scan to provide children (different context)
           local ref_context = file_items.create_context()
           ref_context.state = state
           scan_directory_recursive(ref_context, path)
@@ -196,19 +201,25 @@ M.get_favorites = function(state)
         local ok, item = pcall(file_items.create_item, context, path, ftype)
         if ok then
           item.extra = item.extra or {}
+          top_level_paths[path] = true
           table.insert(favorite_items, item)
           if ftype == "directory" then
             item.loaded = true
             context.folders[path] = item
             scan_directory_recursive(context, path)
-            -- Record all scanned descendant paths
-            local function record_children(children)
+            -- After scanning, rename any children that are also top-level favorites.
+            -- Give them id = "fav-child:path" so they don't conflict with the
+            -- top-level item that was/will be added.
+            local function dedup_children(children)
               for _, child in ipairs(children) do
-                scanned_paths[child.path] = true
-                if child.children then record_children(child.children) end
+                if favorite_set[child.path] and child.path ~= path then
+                  child.id = "fav-child:" .. child.path
+                  top_level_paths[child.path] = true
+                end
+                if child.children then dedup_children(child.children) end
               end
             end
-            record_children(item.children or {})
+            dedup_children(item.children or {})
           end
         else
           logger.error("create_item failed: %s: %s", path, tostring(item))
