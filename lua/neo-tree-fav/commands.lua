@@ -70,6 +70,18 @@ M.remove_favorite = function(state)
   manager.refresh("favorites")
 end
 
+--- Clean all missing (deleted/moved) paths from favorites
+M.clean_missing = function(state)
+  local storage = require("neo-tree-fav.lib.storage")
+  local removed = storage.clean_missing()
+  if removed > 0 then
+    vim.notify("Cleaned " .. removed .. " missing path(s) from favorites", vim.log.levels.INFO)
+    manager.refresh("favorites")
+  else
+    vim.notify("No missing paths found", vim.log.levels.INFO)
+  end
+end
+
 -- ── Common Commands ────────────────────────────────────────────────────────
 -- Adds: open, toggle_node, close_node, close_all_nodes, expand_all_nodes,
 -- copy, cut, paste, delete, rename, show_debug_info, etc.

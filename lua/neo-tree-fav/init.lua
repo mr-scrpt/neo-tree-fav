@@ -94,6 +94,7 @@ M.default_config = {
       ["#"] = "fuzzy_sorter",
       ["<C-x>"] = "clear_filter",
       ["F"] = "remove_favorite",
+      ["X"] = "clean_missing",
     },
   },
 }

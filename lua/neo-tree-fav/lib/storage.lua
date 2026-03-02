@@ -106,4 +106,24 @@ M.has = function(path)
   return false
 end
 
+--- Remove all paths that no longer exist on disk.
+---@return number count Number of removed entries
+M.clean_missing = function()
+  local uv = vim.uv or vim.loop
+  local paths = M.load()
+  local clean = {}
+  local removed = 0
+  for _, p in ipairs(paths) do
+    if uv.fs_stat(p) then
+      table.insert(clean, p)
+    else
+      removed = removed + 1
+    end
+  end
+  if removed > 0 then
+    M.save(clean)
+  end
+  return removed
+end
+
 return M
