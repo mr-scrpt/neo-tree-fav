@@ -116,7 +116,7 @@
 ---
 
 ### Phase 10: Per-project хранение избранного
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Добавить опцию выбора стратегии хранения избранного: `local` — файл `.neo-tree-fav.json` в корне проекта (cwd), `global` — все файлы централизованно в `storage_dir` (уже конфигурируемый путь из Phase 9). Конфигурируется через `setup({ storage_mode = "local" | "global" })`. При `global` пользователь может задать свой путь через `storage_dir`.
 **Depends on**: Phase 9
 
