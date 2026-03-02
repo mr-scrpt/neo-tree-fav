@@ -201,10 +201,58 @@ M.show_filter = function(state, search_as_you_type, keep_filter_on_submit)
       keep_filter_on_submit = false
       cmds.close(_state, _scroll_padding)
     end,
+    -- Jump to next/prev FILE node, skipping directories.
+    -- Uses renderer.select_nodes (standard neo-tree API).
+    move_cursor_to_next_file = function(_state)
+      local files = renderer.select_nodes(_state.tree, function(node)
+        return node.type == "file"
+      end)
+      if #files == 0 then return end
+      local current = _state.tree:get_node()
+      local current_id = current and current:get_id()
+      local found_current = false
+      for _, file in ipairs(files) do
+        if found_current then
+          renderer.focus_node(_state, file:get_id(), true)
+          return
+        end
+        if file:get_id() == current_id then
+          found_current = true
+        end
+      end
+      -- Wrap around to first file
+      renderer.focus_node(_state, files[1]:get_id(), true)
+    end,
+    move_cursor_to_prev_file = function(_state)
+      local files = renderer.select_nodes(_state.tree, function(node)
+        return node.type == "file"
+      end)
+      if #files == 0 then return end
+      local current = _state.tree:get_node()
+      local current_id = current and current:get_id()
+      local prev = files[#files] -- default: wrap to last
+      for _, file in ipairs(files) do
+        if file:get_id() == current_id then
+          renderer.focus_node(_state, prev:get_id(), true)
+          return
+        end
+        prev = file
+      end
+      -- Current not in list — go to last
+      renderer.focus_node(_state, files[#files]:get_id(), true)
+    end,
   }
 
   common_filter.setup_hooks(input, cmds, state, scroll_padding)
   common_filter.setup_mappings(input, cmds, state, scroll_padding)
+
+  -- Tab / S-Tab: jump between file matches (local input mappings)
+  input:map("i", "<Tab>", function()
+    cmds.move_cursor_to_next_file(state, scroll_padding)
+  end, { noremap = true })
+  input:map("i", "<S-Tab>", function()
+    cmds.move_cursor_to_prev_file(state, scroll_padding)
+  end, { noremap = true })
 end
 
 return M
