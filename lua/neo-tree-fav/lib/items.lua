@@ -8,6 +8,7 @@ local renderer = require("neo-tree.ui.renderer")
 local file_items = require("neo-tree.sources.common.file-items")
 local storage = require("neo-tree-fav.lib.storage")
 local logger = require("neo-tree-fav.lib.logger")
+local fzy = require("neo-tree.sources.common.filters.filter_fzy")
 
 local M = {}
 
@@ -60,6 +61,49 @@ local function scan_directory_recursive(context, dir_path)
       end
     end
   end
+end
+
+-- ── Search Filter ──────────────────────────────────────────────────────────
+
+--- Recursively filter children, keeping only items that match `pattern`
+--- or have matching descendants. Returns best_score, best_id.
+local function filter_children_recursive(children, pattern)
+  local best_score, best_id = fzy.get_score_min(), nil
+  local i = 1
+  while i <= #children do
+    local item = children[i]
+    local keep = false
+
+    -- Check if this item matches
+    local search_path = item.name or ""
+    if fzy.has_match(pattern, search_path) then
+      keep = true
+      local score = fzy.score(pattern, search_path)
+      if score > best_score then
+        best_score = score
+        best_id = item.path or item.id
+      end
+    end
+
+    -- Recurse into children (directories)
+    if item.children and #item.children > 0 then
+      local child_score, child_id = filter_children_recursive(item.children, pattern)
+      if #item.children > 0 then
+        keep = true -- has matching descendants
+        if child_score > best_score then
+          best_score = child_score
+          best_id = child_id
+        end
+      end
+    end
+
+    if keep then
+      i = i + 1
+    else
+      table.remove(children, i)
+    end
+  end
+  return best_score, best_id
 end
 
 -- ── Main Entry Point ───────────────────────────────────────────────────────
@@ -147,11 +191,34 @@ M.get_favorites = function(state)
   -- Step 4: Collision resolution (relative to CWD)
   resolve_name_collisions(root.children, state.path)
 
-  -- Auto-expand root only (favorites are top-level, user toggles them)
-  state.default_expanded_nodes = { root.path }
+  -- Step 5: Apply search filter (if active) — prune non-matching items
+  local focus_id = nil
+  if state.search_pattern and #state.search_pattern > 0 then
+    local _, best_id = filter_children_recursive(root.children, state.search_pattern)
+    focus_id = best_id
+    -- Expand all nodes so matches inside directories are visible
+    state.default_expanded_nodes = { root.path }
+    local function collect_dirs(children, expanded)
+      for _, item in ipairs(children) do
+        if item.children and #item.children > 0 then
+          table.insert(expanded, item.path)
+          collect_dirs(item.children, expanded)
+        end
+      end
+    end
+    collect_dirs(root.children, state.default_expanded_nodes)
+  else
+    -- Auto-expand root only (favorites are top-level, user toggles them)
+    state.default_expanded_nodes = { root.path }
+  end
 
   file_items.advanced_sort(root.children, state)
   renderer.show_nodes({ root }, state)
+
+  -- Focus best match after render
+  if focus_id then
+    renderer.focus_node(state, focus_id, true)
+  end
 
   state.loading = false
   logger.info("get_favorites: %d items rendered (flat)", #favorite_items)

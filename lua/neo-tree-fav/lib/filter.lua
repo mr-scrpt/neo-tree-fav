@@ -31,53 +31,9 @@ local log = require("neo-tree.log")
 local manager = require("neo-tree.sources.manager")
 local compat = require("neo-tree.utils._compat")
 local common_filter = require("neo-tree.sources.common.filters")
-local fzy = require("neo-tree.sources.common.filters.filter_fzy")
+local items = require("neo-tree-fav.lib.items")
 
 local M = {}
-
---- Show filtered tree by cloning orig_tree and removing non-matching nodes.
---- Identical to common/filters.show_filtered_tree but with nil-safe node.extra.
-local function show_filtered_tree(state, do_not_focus_window)
-  state.tree = vim.deepcopy(state.orig_tree)
-  state.tree:get_nodes()[1].search_pattern = state.search_pattern
-  local max_score, max_id = fzy.get_score_min(), nil
-
-  local function filter_tree(node_id)
-    local node = state.tree:get_node(node_id)
-    if not node then return false end
-    local path = (node.extra and node.extra.search_path) or node.path or ""
-
-    local should_keep = fzy.has_match(state.search_pattern, path)
-    if should_keep then
-      local score = fzy.score(state.search_pattern, path)
-      if node.extra then node.extra.fzy_score = score end
-      if score > max_score then
-        max_score = score
-        max_id = node_id
-      end
-    end
-
-    if node:has_children() then
-      for _, child_id in ipairs(node:get_child_ids()) do
-        should_keep = filter_tree(child_id) or should_keep
-      end
-    end
-    if not should_keep then
-      state.tree:remove_node(node_id)
-    end
-    return should_keep
-  end
-
-  if #state.search_pattern > 0 then
-    for _, root in ipairs(state.tree:get_nodes()) do
-      filter_tree(root:get_id())
-    end
-  end
-  manager.redraw(state.name)
-  if max_id then
-    renderer.focus_node(state, max_id, do_not_focus_window)
-  end
-end
 
 --- Reset search state and handle the selected node.
 --- Matches filesystem/init.lua:reset_search (lines 202-248) EXACTLY:
@@ -176,7 +132,7 @@ M.show_filter = function(state, search_as_you_type, keep_filter_on_submit)
         return
       end
       state.search_pattern = value
-      show_filtered_tree(state, false)
+      items.get_favorites(state)
     end,
     on_change = function(value)
       if not search_as_you_type then return end
@@ -200,7 +156,7 @@ M.show_filter = function(state, search_as_you_type, keep_filter_on_submit)
         local delay = len_to_delay[#value] or 100
 
         utils.debounce("favorites_filter", function()
-          show_filtered_tree(state, true)
+          items.get_favorites(state)
         end, delay, utils.debounce_strategy.CALL_LAST_ONLY)
       end
     end,
