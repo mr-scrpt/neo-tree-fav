@@ -171,7 +171,7 @@ M.setup = function(config, global_config)
       local path = node.path or node:get_id()
       if storage.has(path) then
         return {
-          text = "⭐ ",
+          text = " ⭐",
           highlight = config.highlight or "NeoTreeFavorite",
         }
       end
