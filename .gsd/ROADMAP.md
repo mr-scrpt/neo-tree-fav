@@ -100,3 +100,15 @@
 - [ ] TBD (run /plan 8 to create)
 
 **Deliverable**: В filesystem source рядом с favorited элементами отображается ⭐.
+
+---
+
+### Phase 9: GitHub Release и конфигурируемость
+**Status**: ⬜ Not Started
+**Objective**: Подготовить пакет для публикации на GitHub и использования через lazy.nvim. Вынести захардкоженные опции (кеймапы, пути хранения, иконки, highlight groups) в конфигурируемые параметры через `setup(opts)`.
+**Depends on**: Phase 8
+
+**Tasks**:
+- [ ] TBD (run /plan 9 to create)
+
+**Deliverable**: Плагин готов для `git push` на GitHub и установки через `lazy.nvim` с пользовательскими настройками.
