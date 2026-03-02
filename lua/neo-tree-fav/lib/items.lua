@@ -203,10 +203,8 @@ M.get_favorites = function(state)
   resolve_name_collisions(root.children, state.path)
 
   -- Step 5: Apply search filter (if active) — prune non-matching items
-  local focus_id = nil
   if state.search_pattern and #state.search_pattern > 0 then
-    local _, best_id = filter_children_recursive(root.children, state.search_pattern)
-    focus_id = best_id
+    filter_children_recursive(root.children, state.search_pattern)
     -- Expand all nodes so matches inside directories are visible
     state.default_expanded_nodes = { root.path }
     local function collect_dirs(children, expanded)
@@ -226,9 +224,14 @@ M.get_favorites = function(state)
   file_items.advanced_sort(root.children, state)
   renderer.show_nodes({ root }, state)
 
-  -- Focus best match after render
-  if focus_id then
-    renderer.focus_node(state, focus_id, true)
+  -- select_first_file: focus first FILE node after render (matches filesystem pattern)
+  if state.search_pattern and #state.search_pattern > 0 then
+    local files = renderer.select_nodes(state.tree, function(node)
+      return node.type == "file"
+    end, 1)
+    if #files > 0 then
+      renderer.focus_node(state, files[1]:get_id(), true)
+    end
   end
 
   state.loading = false
