@@ -1,0 +1,13 @@
+# Dev artifacts
+my-project/
+logs/
+.gsd/
+scripts/
+adapters/
+docs/
+reference/
+GSD-STYLE.md
+PROJECT_RULES.md
+model_capabilities.yaml
+.agent/
+.gemini/
