@@ -23,6 +23,7 @@ wave: 1
 | init.lua:165 | `#FFD700` | `indicator.highlight_color` |
 | init.lua:174 | `" ⭐"` | `indicator.icon` |
 | init.lua:143 | `"F"` (filesystem toggle) | `filesystem_toggle_key` |
+| neotree.lua:206 | `<leader>F` (open favorites float) | `keymap` |
 | init.lua:92-97 | window.mappings | уже конфигурируемо через neo-tree |
 | storage.lua:19 | `favorite-projects` | `storage_dir` |
 | logger.lua:16 | `neo-tree-favorites.log` | `log_file` |
@@ -39,6 +40,7 @@ wave: 1
     local M = {}
     M.defaults = {
       display_name = " ⭐ Favorites ",
+      keymap = "<leader>F",  -- nil = не регистрировать keymap
       indicator = {
         enabled = true,
         icon = " ⭐",
