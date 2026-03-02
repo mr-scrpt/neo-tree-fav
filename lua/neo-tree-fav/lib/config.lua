@@ -25,11 +25,10 @@ M.defaults = {
   filesystem_toggle_key = "F",
 
   -- Storage directory for per-project JSON files
-  -- Default: stdpath("data")/neo-tree-favorites
-  storage_dir = vim.fn.stdpath("data") .. "/neo-tree-favorites",
+  storage_dir = vim.fn.stdpath("config") .. "/neotree-fav",
 
   -- Log file path
-  log_file = vim.fn.stdpath("data") .. "/neo-tree-favorites.log",
+  log_file = vim.fn.stdpath("config") .. "/neotree-fav/neo-tree-fav.log",
 }
 
 ---@type NeoTreeFavConfig
