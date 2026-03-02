@@ -158,7 +158,30 @@ M.get_favorites = function(state)
     return
   end
 
+  -- Dedup: skip favorites that are descendants of other favorited directories.
+  -- They'll appear naturally via scan_directory_recursive of the parent.
+  local fav_dirs = {}
   for _, path in ipairs(favorites) do
+    local stat = uv.fs_stat(path)
+    if stat and stat.type == "directory" then
+      fav_dirs[#fav_dirs + 1] = path .. "/"
+    end
+  end
+
+  local function is_descendant_of_fav_dir(path)
+    for _, dir_prefix in ipairs(fav_dirs) do
+      if path ~= dir_prefix:sub(1, -2) and path:sub(1, #dir_prefix) == dir_prefix then
+        return true
+      end
+    end
+    return false
+  end
+
+  for _, path in ipairs(favorites) do
+    if is_descendant_of_fav_dir(path) then
+      logger.debug("skipping descendant favorite: %s", path)
+      goto continue
+    end
     local stat = uv.fs_stat(path)
     if stat then
       local ftype = stat.type == "directory" and "directory" or "file"
@@ -188,6 +211,7 @@ M.get_favorites = function(state)
       table.insert(favorite_items, missing_item)
       logger.warn("path not found (shown as missing): %s", path)
     end
+    ::continue::
   end
 
   -- Step 3: FLATTEN — replace root.children with only favorite items.
