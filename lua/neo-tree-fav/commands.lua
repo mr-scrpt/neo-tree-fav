@@ -63,7 +63,8 @@ end
 M.remove_favorite = function(state)
   local node = state.tree:get_node()
   if not node or node.type == "message" then return end
-  local path = node:get_id()
+  -- Use node.path (not get_id) — fav-ref nodes have modified id
+  local path = node.path or node:get_id()
   local storage = require("neo-tree-fav.lib.storage")
   storage.remove(path)
   vim.notify("Removed from favorites: " .. vim.fn.fnamemodify(path, ":t"), vim.log.levels.INFO)
@@ -86,5 +87,20 @@ end
 -- Adds: open, toggle_node, close_node, close_all_nodes, expand_all_nodes,
 -- copy, cut, paste, delete, rename, show_debug_info, etc.
 cc._add_common_commands(M)
+
+-- Override open to use node.path instead of node:get_id().
+-- Needed because fav-ref nodes (duplicates) have id = "fav:path".
+local utils = require("neo-tree.utils")
+local _common_open = M.open
+M.open = function(state, open_cmd, toggle)
+  local node = state.tree:get_node()
+  if not node then return end
+  local path = node.path or node:get_id()
+  if node.type == "directory" then
+    _common_open(state, open_cmd, toggle)
+  else
+    utils.open_file(state, path, open_cmd)
+  end
+end
 
 return M

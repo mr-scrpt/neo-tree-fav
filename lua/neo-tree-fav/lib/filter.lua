@@ -57,7 +57,8 @@ M.reset_search = function(state, refresh, open_current_node)
   if open_current_node then
     local success, node = pcall(state.tree.get_node, state.tree)
     if success and node then
-      local path = node:get_id()
+      -- Use node.path (not get_id) — fav-ref nodes have modified id
+      local path = node.path or node:get_id()
       renderer.position.set(state, path)
       if node.type == "directory" then
         path = utils.remove_trailing_slash(path)

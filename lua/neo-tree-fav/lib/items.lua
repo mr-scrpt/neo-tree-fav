@@ -158,44 +158,61 @@ M.get_favorites = function(state)
     return
   end
 
-  -- Dedup: skip favorites that are descendants of other favorited directories.
-  -- They'll appear naturally via scan_directory_recursive of the parent.
-  local fav_dirs = {}
-  for _, path in ipairs(favorites) do
-    local stat = uv.fs_stat(path)
-    if stat and stat.type == "directory" then
-      fav_dirs[#fav_dirs + 1] = path .. "/"
-    end
-  end
-
-  local function is_descendant_of_fav_dir(path)
-    for _, dir_prefix in ipairs(fav_dirs) do
-      if path ~= dir_prefix:sub(1, -2) and path:sub(1, #dir_prefix) == dir_prefix then
-        return true
-      end
-    end
-    return false
-  end
+  -- Track paths created by directory scanning to detect duplicates.
+  -- If a favorite is ALSO inside a scanned directory, it gets a unique
+  -- nui tree id ("fav:" prefix) so both can coexist. node.path stays real.
+  local scanned_paths = {}
 
   for _, path in ipairs(favorites) do
-    if is_descendant_of_fav_dir(path) then
-      logger.debug("skipping descendant favorite: %s", path)
-      goto continue
-    end
     local stat = uv.fs_stat(path)
     if stat then
       local ftype = stat.type == "directory" and "directory" or "file"
-      local ok, item = pcall(file_items.create_item, context, path, ftype)
-      if ok then
-        item.extra = item.extra or {}
-        table.insert(favorite_items, item)
+
+      if scanned_paths[path] then
+        -- This path already exists in the tree (child of another favorite dir).
+        -- Create a reference item with unique id so nui tree accepts it.
+        local ref_item = {
+          id = "fav:" .. path,
+          path = path,
+          name = vim.fn.fnamemodify(path, ":t"),
+          type = ftype,
+          extra = { fav_ref = true },
+          children = {},
+          loaded = true,
+        }
         if ftype == "directory" then
-          item.loaded = true
-          context.folders[path] = item
-          scan_directory_recursive(context, path)
+          -- For directory refs, scan to provide children (different context)
+          local ref_context = file_items.create_context()
+          ref_context.state = state
+          scan_directory_recursive(ref_context, path)
+          local dir_entry = ref_context.folders[path]
+          if dir_entry then
+            ref_item.children = dir_entry.children or {}
+          end
         end
+        table.insert(favorite_items, ref_item)
+        logger.debug("duplicate favorite (ref): %s", path)
       else
-        logger.error("create_item failed: %s: %s", path, tostring(item))
+        local ok, item = pcall(file_items.create_item, context, path, ftype)
+        if ok then
+          item.extra = item.extra or {}
+          table.insert(favorite_items, item)
+          if ftype == "directory" then
+            item.loaded = true
+            context.folders[path] = item
+            scan_directory_recursive(context, path)
+            -- Record all scanned descendant paths
+            local function record_children(children)
+              for _, child in ipairs(children) do
+                scanned_paths[child.path] = true
+                if child.children then record_children(child.children) end
+              end
+            end
+            record_children(item.children or {})
+          end
+        else
+          logger.error("create_item failed: %s: %s", path, tostring(item))
+        end
       end
     else
       -- Path no longer exists — show as [missing] so user can clean up
@@ -211,7 +228,6 @@ M.get_favorites = function(state)
       table.insert(favorite_items, missing_item)
       logger.warn("path not found (shown as missing): %s", path)
     end
-    ::continue::
   end
 
   -- Step 3: FLATTEN — replace root.children with only favorite items.
