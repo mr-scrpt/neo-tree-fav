@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: 4 (Динамическое дерево и Storage)
+> **Current Phase**: 5 (Complete)
 > **Milestone**: v1.0
 
 ## Must-Haves (from SPEC)
@@ -51,20 +51,28 @@
 ---
 
 ### Phase 4: Динамическое дерево и Storage
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Заменить моки на динамическую генерацию из per-project JSON. Toggle `F` в filesystem.
-**Deliverable**: Полный цикл: `F` добавляет → `<leader>F` показывает.
+**Deliverable**: storage.lua (get/add/remove/toggle/has), items.lua использует storage.get(), F в filesystem через autocmd, фильтрация пересобирает дерево.
 
 ---
 
 ### Phase 5: Персистентность и Управление
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Хранение в JSON per-project, загрузка при старте, message-node для пустого.
-**Deliverable**: Данные сохраняются и восстанавливаются между сессиями.
+**Deliverable**: storage.lua с per-project JSON в ~/.config/nvim/favorite-projects/, message-node при пустом списке.
 
 ---
 
 ### Phase 6: Финализация и Валидация
 **Status**: ⬜ Not Started
 **Objective**: Edge-cases (удалённые/перемещённые файлы), FS-watcher, полировка UX.
+**Depends on**: Phase 5
+
+**Tasks**:
+- [ ] Edge-cases: удалённые/перемещённые файлы
+- [ ] FS-watcher интеграция
+- [ ] Jump between matches: `<Tab>`/`<S-Tab>` прыгает по файлам, пропуская папки в фильтрованном дереве (renderer.select_nodes API)
+- [ ] Полировка UX
+
 **Deliverable**: Стабильный, production-ready плагин.
