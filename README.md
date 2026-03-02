@@ -11,6 +11,7 @@ Custom **Favorites** source for [neo-tree.nvim](https://github.com/nvim-neo-tree
 - 🏷️ **Name collision resolution** — `domain [src/core]` vs `domain [src/modules]`
 - 💾 **Per-project persistence** in JSON
 - ⚠️ **Missing file detection** — deleted files shown as `[missing]`
+- ⭐ **Star indicator** in filesystem — favorited items show ⭐ icon
 
 ## Installation
 
@@ -84,6 +85,37 @@ end, { desc = "Toggle Favorites (float)" })
 | `F` | Toggle favorite (add/remove) |
 
 > The `F` mapping in filesystem is registered automatically via autocmd.
+
+## ⭐ Indicator in Filesystem
+
+To show ⭐ next to favorited items in the filesystem source, add `{ "favorite_indicator" }` to your renderers:
+
+```lua
+-- In your neo-tree config:
+filesystem = {
+  renderers = {
+    file = {
+      { "indent" },
+      { "icon" },
+      { "favorite_indicator" }, -- ⭐
+      { "container", content = {
+        { "name", zindex = 10 },
+        { "git_status", zindex = 10, align = "right" },
+      }},
+    },
+    directory = {
+      { "indent" },
+      { "icon" },
+      { "favorite_indicator" }, -- ⭐
+      { "container", content = {
+        { "name", zindex = 10 },
+      }},
+    },
+  },
+}
+```
+
+The highlight group `NeoTreeFavorite` (gold `#FFD700`) is set automatically.
 
 ## Storage
 
