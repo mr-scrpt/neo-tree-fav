@@ -69,11 +69,16 @@ require("neo-tree-fav").setup({
   -- Key to toggle favorite in filesystem source (nil = don't register)
   filesystem_toggle_key = "F",
 
-  -- Storage directory for per-project JSON files
-  storage_dir = vim.fn.stdpath("data") .. "/neo-tree-favorites",
+  -- Storage mode: "global" or "local"
+  -- "global" — all projects in storage_dir (centralized)
+  -- "local"  — .neo-tree-fav.json in each project root (cwd)
+  storage_mode = "global",
+
+  -- Storage directory for per-project JSON files (only for "global" mode)
+  storage_dir = vim.fn.stdpath("config") .. "/neotree-fav",
 
   -- Log file path
-  log_file = vim.fn.stdpath("data") .. "/neo-tree-favorites.log",
+  log_file = vim.fn.stdpath("config") .. "/neotree-fav/neo-tree-fav.log",
 })
 ```
 
@@ -141,13 +146,25 @@ filesystem = {
 
 ## Storage
 
-Favorites are stored per-project in:
+### Global mode (default)
+
+Favorites are stored centrally in:
 
 ```
-~/.local/share/nvim/neo-tree-favorites/{project_name}_{hash}.json
+~/.config/nvim/neotree-fav/{project_name}_{hash}.json
 ```
 
 Each project gets its own file based on CWD. The hash ensures uniqueness for same-named projects in different locations.
+
+### Local mode
+
+Favorites are stored in the project root:
+
+```
+your-project/.neo-tree-fav.json
+```
+
+> **Tip**: Add `.neo-tree-fav.json` to your project's `.gitignore`.
 
 > **Migration**: If you have existing data in `~/.config/nvim/favorite-projects/`, the plugin will automatically use it until you migrate.
 
