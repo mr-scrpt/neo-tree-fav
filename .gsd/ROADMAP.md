@@ -104,7 +104,7 @@
 ---
 
 ### Phase 9: GitHub Release и конфигурируемость
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Подготовить пакет для публикации на GitHub и использования через lazy.nvim. Вынести захардкоженные опции (кеймапы, пути хранения, иконки, highlight groups) в конфигурируемые параметры через `setup(opts)`.
 **Depends on**: Phase 8
 
