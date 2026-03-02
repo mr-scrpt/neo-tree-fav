@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: 5 (Complete)
+> **Current Phase**: 6 (Complete)
 > **Milestone**: v1.0
 
 ## Must-Haves (from SPEC)
@@ -65,7 +65,7 @@
 ---
 
 ### Phase 6: Финализация и Валидация
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Edge-cases (удалённые/перемещённые файлы), FS-watcher, полировка UX.
 **Depends on**: Phase 5
 
