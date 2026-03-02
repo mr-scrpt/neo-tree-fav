@@ -76,3 +76,27 @@
 - [ ] Полировка UX
 
 **Deliverable**: Стабильный, production-ready плагин.
+
+---
+
+### Phase 7: FS-watcher для автообновления
+**Status**: ⬜ Not Started
+**Objective**: Автоматическое обновление favorites tree при изменениях в файловой системе (создание/удаление/переименование файлов внутри favorited директорий).
+**Depends on**: Phase 6
+
+**Tasks**:
+- [ ] TBD (run /plan 7 to create)
+
+**Deliverable**: Favorites автоматически обновляется при изменениях FS без ручного refresh.
+
+---
+
+### Phase 8: Иконка ⭐ для favorited файлов в filesystem
+**Status**: ⬜ Not Started
+**Objective**: В стандартном проводнике filesystem отображать иконку ⭐ рядом с файлами/папками которые добавлены в избранное.
+**Depends on**: Phase 6
+
+**Tasks**:
+- [ ] TBD (run /plan 8 to create)
+
+**Deliverable**: В filesystem source рядом с favorited элементами отображается ⭐.
