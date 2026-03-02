@@ -35,9 +35,18 @@ local function get_storage_dir()
 end
 
 --- Get the storage file path for the current project.
+--- In "local" mode: cwd/.neo-tree-fav.json
+--- In "global" mode: storage_dir/{project_name}_{hash}.json
 ---@return string
 M.get_storage_path = function()
+  local config = require("neo-tree-fav.lib.config")
   local cwd = vim.fn.getcwd()
+
+  if config.options.storage_mode == "local" then
+    return cwd .. "/.neo-tree-fav.json"
+  end
+
+  -- Global mode: centralized storage
   local project_name = vim.fn.fnamemodify(cwd, ":t")
   local cwd_hash = vim.fn.sha256(cwd):sub(1, 8)
   local dir = get_storage_dir()

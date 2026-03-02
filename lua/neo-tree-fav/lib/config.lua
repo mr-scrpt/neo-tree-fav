@@ -24,7 +24,12 @@ M.defaults = {
   -- Key to toggle favorite in filesystem source (nil = don't register)
   filesystem_toggle_key = "F",
 
-  -- Storage directory for per-project JSON files
+  -- Storage mode: "global" or "local"
+  -- "global" — all projects in storage_dir (centralized)
+  -- "local"  — .neo-tree-fav.json in each project root (cwd)
+  storage_mode = "global",
+
+  -- Storage directory for per-project JSON files (only for "global" mode)
   storage_dir = vim.fn.stdpath("config") .. "/neotree-fav",
 
   -- Log file path
