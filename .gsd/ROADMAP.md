@@ -92,7 +92,7 @@
 ---
 
 ### Phase 8: Иконка ⭐ для favorited файлов в filesystem
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: В стандартном проводнике filesystem отображать иконку ⭐ рядом с файлами/папками которые добавлены в избранное.
 **Depends on**: Phase 6
 
