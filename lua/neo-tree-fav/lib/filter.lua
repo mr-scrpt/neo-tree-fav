@@ -3,24 +3,28 @@
 -- ARCHITECTURE:
 --   Hybrid approach — reuses neo-tree internals where possible, custom only where needed.
 --
---   REUSED from neo-tree:
+--   REUSED from neo-tree (stable public APIs):
 --     • fzy (common.filters.filter_fzy) — fuzzy scoring and matching
 --     • setup_hooks (common.filters) — BufLeave/BufDelete auto-close handlers
 --     • setup_mappings (common.filters) — ↑↓ Esc keybindings from fuzzy_finder_mappings
 --     • nui.input + popups — UI primitives
+--     • renderer.focus_node, renderer.position, renderer.get_expanded_nodes
+--     • utils.open_file, utils.debounce, utils.remove_trailing_slash
 --
---   CUSTOM (cannot use common/filters directly):
---     • show_filtered_tree — clone+filter approach from common/filters, but nil-safe node.extra
---       (common/filters.show_filter hardcodes filter_external.cancel() and config.filesystem)
+--   CUSTOM (cannot use common/filters.show_filter directly — see below):
+--     • show_filter — common/filters.show_filter hardcodes:
+--       • show_filtered_tree (clone+remove_node — broken for non-filesystem sources)
+--       • filter_external.cancel() in reset_filter (filesystem-only)
+--       Our on_change instead calls fav.navigate(state) to rebuild the tree,
+--       matching the filesystem pattern (_navigate_internal on each keypress).
 --     • reset_search — filesystem/init.lua:202-248 pattern:
 --       file → utils.open_file, dir → navigate+focus
 --       (common/filters.reset_filter only navigates, never opens files)
---     • on_change empty handler — filesystem/lib/filter.lua:144-154 pattern
 --
 -- REFERENCES:
---   • neo-tree/sources/common/filters/init.lua — generic filter (our show_filtered_tree base)
---   • neo-tree/sources/filesystem/lib/filter.lua — UI pattern (our show_filter base)
---   • neo-tree/sources/filesystem/init.lua:202-248 — reset_search (our reset_search base)
+--   • neo-tree/sources/common/filters/init.lua — our setup_hooks/setup_mappings source
+--   • neo-tree/sources/filesystem/lib/filter.lua — our show_filter UI pattern
+--   • neo-tree/sources/filesystem/init.lua:202-248 — our reset_search pattern
 
 local Input = require("nui.input")
 local fav = require("neo-tree-fav")
@@ -31,7 +35,6 @@ local log = require("neo-tree.log")
 local manager = require("neo-tree.sources.manager")
 local compat = require("neo-tree.utils._compat")
 local common_filter = require("neo-tree.sources.common.filters")
-local items = require("neo-tree-fav.lib.items")
 
 local M = {}
 
@@ -132,7 +135,7 @@ M.show_filter = function(state, search_as_you_type, keep_filter_on_submit)
         return
       end
       state.search_pattern = value
-      items.get_favorites(state)
+      fav.navigate(state)
     end,
     on_change = function(value)
       if not search_as_you_type then return end
@@ -156,7 +159,7 @@ M.show_filter = function(state, search_as_you_type, keep_filter_on_submit)
         local delay = len_to_delay[#value] or 100
 
         utils.debounce("favorites_filter", function()
-          items.get_favorites(state)
+          fav.navigate(state)
         end, delay, utils.debounce_strategy.CALL_LAST_ONLY)
       end
     end,
