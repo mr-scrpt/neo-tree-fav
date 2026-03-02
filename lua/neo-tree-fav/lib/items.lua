@@ -175,7 +175,18 @@ M.get_favorites = function(state)
         logger.error("create_item failed: %s: %s", path, tostring(item))
       end
     else
-      logger.warn("path not found: %s", path)
+      -- Path no longer exists — show as [missing] so user can clean up
+      local missing_name = vim.fn.fnamemodify(path, ":t")
+      local missing_item = {
+        id = path,
+        path = path,
+        name = "[missing] " .. missing_name,
+        type = "file",
+        extra = { missing = true },
+        children = {},
+      }
+      table.insert(favorite_items, missing_item)
+      logger.warn("path not found (shown as missing): %s", path)
     end
   end
 
