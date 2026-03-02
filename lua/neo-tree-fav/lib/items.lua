@@ -205,11 +205,16 @@ M.get_favorites = function(state)
           table.insert(favorite_items, item)
           if ftype == "directory" then
             item.loaded = true
+            -- Use a SEPARATE context for directory scanning.
+            -- create_item caches items by path in context — if we share
+            -- context with top-level items, the scan returns the SAME object,
+            -- and dedup_children would mutate the top-level item's id too.
+            local dir_context = file_items.create_context()
+            dir_context.state = state
             context.folders[path] = item
-            scan_directory_recursive(context, path)
+            dir_context.folders[path] = item
+            scan_directory_recursive(dir_context, path)
             -- After scanning, rename any children that are also top-level favorites.
-            -- Give them id = "fav-child:path" so they don't conflict with the
-            -- top-level item that was/will be added.
             local function dedup_children(children)
               for _, child in ipairs(children) do
                 if favorite_set[child.path] and child.path ~= path then
