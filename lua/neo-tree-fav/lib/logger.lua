@@ -13,7 +13,8 @@ local initialized = false
 ---@return string
 local function get_log_path()
   if not log_path then
-    log_path = vim.fn.stdpath("config") .. "/neo-tree-favorites.log"
+    local config = require("neo-tree-fav.lib.config")
+    log_path = config.options.log_file
   end
   return log_path
 end

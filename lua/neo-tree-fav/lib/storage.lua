@@ -1,7 +1,7 @@
 -- neo-tree-fav: Per-project storage for favorite paths
 --
--- Stores favorites in a JSON file per project:
---   ~/.config/nvim/favorite-projects/{project_name}_{hash}.json
+-- Stores favorites in a JSON file per project.
+-- Default: stdpath("data")/neo-tree-favorites/{project_name}_{hash}.json
 --
 -- Simple read-from-disk on every call (no in-memory cache).
 -- File is small (~50 paths max), so sync IO is fine.
@@ -10,14 +10,37 @@ local logger = require("neo-tree-fav.lib.logger")
 
 local M = {}
 
+--- Get the storage directory, with migration from old location.
+---@return string
+local function get_storage_dir()
+  local config = require("neo-tree-fav.lib.config")
+  local new_dir = config.options.storage_dir
+
+  -- Migration: check if old location has files
+  local old_dir = vim.fn.stdpath("config") .. "/favorite-projects"
+  if new_dir ~= old_dir and vim.fn.isdirectory(old_dir) == 1 then
+    local old_files = vim.fn.glob(old_dir .. "/*.json", false, true)
+    if #old_files > 0 then
+      -- Old location has data — check if new location is empty/missing
+      local new_files = vim.fn.glob(new_dir .. "/*.json", false, true)
+      if #new_files == 0 then
+        -- Use old location (user hasn't migrated yet)
+        return old_dir
+      end
+    end
+  end
+
+  vim.fn.mkdir(new_dir, "p")
+  return new_dir
+end
+
 --- Get the storage file path for the current project.
 ---@return string
 M.get_storage_path = function()
   local cwd = vim.fn.getcwd()
   local project_name = vim.fn.fnamemodify(cwd, ":t")
   local cwd_hash = vim.fn.sha256(cwd):sub(1, 8)
-  local dir = vim.fn.stdpath("config") .. "/favorite-projects"
-  vim.fn.mkdir(dir, "p")
+  local dir = get_storage_dir()
   return dir .. "/" .. project_name .. "_" .. cwd_hash .. ".json"
 end
 

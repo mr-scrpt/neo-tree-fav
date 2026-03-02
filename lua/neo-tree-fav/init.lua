@@ -7,11 +7,12 @@ local events = require("neo-tree.events")
 local utils = require("neo-tree.utils")
 local items = require("neo-tree-fav.lib.items")
 local logger = require("neo-tree-fav.lib.logger")
+local plugin_config = require("neo-tree-fav.lib.config")
 
 ---@class neotree.sources.Favorites : neotree.Source
 local M = {
   name = "favorites",
-  display_name = " ⭐ Favorites ",
+  display_name = plugin_config.options.display_name,
 }
 
 local wrap = function(func)
@@ -101,18 +102,29 @@ M.default_config = {
 
 ---Configures the plugin, should be called before the plugin is used.
 --- Called by neo-tree's manager.setup() with (config, global_config).
---- May also be called by lazy.nvim with no arguments — in that case, just init logger.
+--- May also be called by lazy.nvim with user opts — in that case, apply config and return.
 ---@param config table?
 ---@param global_config table?
 M.setup = function(config, global_config)
-  logger.init()
-  logger.info("favorites source setup complete")
-
-  -- When called from lazy.nvim without args, just init logger and return.
-  -- Neo-tree will call setup again with proper config.
+  -- When called from lazy.nvim: setup(user_opts)
+  -- Apply user options and register keymap, but don't subscribe to neo-tree events yet.
   if not global_config then
+    plugin_config.setup(config)
+    M.display_name = plugin_config.options.display_name
+    logger.init()
+    logger.info("favorites plugin configured via setup()")
+
+    -- Register keymap for opening favorites float
+    if plugin_config.options.keymap then
+      vim.keymap.set("n", plugin_config.options.keymap, function()
+        vim.cmd("Neotree float favorites")
+      end, { desc = "Toggle Favorites (float)" })
+    end
     return
   end
+
+  logger.init()
+  logger.info("favorites source setup complete")
 
   -- Refresh on write
   if global_config.enable_refresh_on_write then
@@ -126,54 +138,51 @@ M.setup = function(config, global_config)
     })
   end
 
-  -- Register "F" toggle in filesystem source via autocmd.
-  -- We set a buffer-local keymap on every neo-tree filesystem buffer.
-  -- This is the most reliable approach — it works regardless of when
-  -- neo-tree processes its config, because we set the keymap AFTER
-  -- the buffer is created.
-  vim.api.nvim_create_autocmd("FileType", {
-    pattern = "neo-tree",
-    group = vim.api.nvim_create_augroup("neo-tree-fav-toggle", { clear = true }),
-    callback = function(args)
-      -- Check if this buffer belongs to the filesystem source
-      vim.schedule(function()
-        if not vim.api.nvim_buf_is_valid(args.buf) then return end
-        local ok, source = pcall(vim.api.nvim_buf_get_var, args.buf, "neo_tree_source")
-        if ok and source == "filesystem" then
-          vim.api.nvim_buf_set_keymap(args.buf, "n", "F", "", {
-            noremap = true,
-            nowait = true,
-            desc = "Toggle favorite",
-            callback = function()
-              -- Get state for this filesystem buffer
-              local mgr = require("neo-tree.sources.manager")
-              local state = mgr.get_state("filesystem")
-              if state then
-                require("neo-tree-fav.commands").toggle_favorite(state)
-              end
-            end,
-          })
-        end
-      end)
-    end,
-  })
+  -- Register toggle key in filesystem source via autocmd.
+  local toggle_key = plugin_config.options.filesystem_toggle_key
+  if toggle_key then
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = "neo-tree",
+      group = vim.api.nvim_create_augroup("neo-tree-fav-toggle", { clear = true }),
+      callback = function(args)
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(args.buf) then return end
+          local ok, source = pcall(vim.api.nvim_buf_get_var, args.buf, "neo_tree_source")
+          if ok and source == "filesystem" then
+            vim.api.nvim_buf_set_keymap(args.buf, "n", toggle_key, "", {
+              noremap = true,
+              nowait = true,
+              desc = "Toggle favorite",
+              callback = function()
+                local mgr = require("neo-tree.sources.manager")
+                local state = mgr.get_state("filesystem")
+                if state then
+                  require("neo-tree-fav.commands").toggle_favorite(state)
+                end
+              end,
+            })
+          end
+        end)
+      end,
+    })
+  end
 
   -- ── ⭐ Indicator in Filesystem ─────────────────────────────────────────
-  -- Inject favorite_indicator component into filesystem source so
-  -- users can add { "favorite_indicator" } to their renderers config.
-  -- The component checks storage.has(path) and shows ⭐ for favorited items.
-  vim.api.nvim_set_hl(0, "NeoTreeFavorite", { fg = "#FFD700", default = true })
+  local ind = plugin_config.options.indicator
+  if ind.enabled then
+    vim.api.nvim_set_hl(0, ind.highlight, { fg = ind.highlight_color, default = true })
 
-  local ok_fs, fs_components = pcall(require, "neo-tree.sources.filesystem.components")
-  if ok_fs then
-    fs_components.favorite_indicator = function(config, node, state)
-      local storage = require("neo-tree-fav.lib.storage")
-      local path = node.path or node:get_id()
-      if storage.has(path) then
-        return {
-          text = " ⭐",
-          highlight = config.highlight or "NeoTreeFavorite",
-        }
+    local ok_fs, fs_components = pcall(require, "neo-tree.sources.filesystem.components")
+    if ok_fs then
+      fs_components.favorite_indicator = function(comp_config, node, state)
+        local storage = require("neo-tree-fav.lib.storage")
+        local path = node.path or node:get_id()
+        if storage.has(path) then
+          return {
+            text = ind.icon,
+            highlight = comp_config.highlight or ind.highlight,
+          }
+        end
       end
     end
   end
