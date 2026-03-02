@@ -158,6 +158,26 @@ M.setup = function(config, global_config)
     end,
   })
 
+  -- ── ⭐ Indicator in Filesystem ─────────────────────────────────────────
+  -- Inject favorite_indicator component into filesystem source so
+  -- users can add { "favorite_indicator" } to their renderers config.
+  -- The component checks storage.has(path) and shows ⭐ for favorited items.
+  vim.api.nvim_set_hl(0, "NeoTreeFavorite", { fg = "#FFD700", default = true })
+
+  local ok_fs, fs_components = pcall(require, "neo-tree.sources.filesystem.components")
+  if ok_fs then
+    fs_components.favorite_indicator = function(config, node, state)
+      local storage = require("neo-tree-fav.lib.storage")
+      local path = node.path or node:get_id()
+      if storage.has(path) then
+        return {
+          text = "⭐ ",
+          highlight = config.highlight or "NeoTreeFavorite",
+        }
+      end
+    end
+  end
+
   -- Diagnostics support
   if global_config.enable_diagnostics then
     manager.subscribe(M.name, {
