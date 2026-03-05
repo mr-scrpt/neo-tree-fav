@@ -183,6 +183,7 @@ M.setup = function(config, global_config)
             highlight = comp_config.highlight or ind.highlight,
           }
         end
+        return { text = "" }
       end
     end
   end
